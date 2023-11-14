@@ -1,0 +1,118 @@
+<!-- FILEPATH: /home/johnn/go/src/bill-detect/public/index.html -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bill Detection</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style> 
+
+body {
+            background-color: #f8f9fa;
+            margin: 0;
+            overflow: hidden; /* Ensure the video covers the entire viewport */
+        }
+
+        #video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            object-fit: cover; /* Preserve video aspect ratio and cover the entire container */
+        }
+
+        #capture {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            z-index: 1; /* Ensure the button is above the video */
+        }
+    </style>
+  </head>
+  <body>
+    <video id="video" playsinline autoplay muted loop>
+    </video>
+    <button id="capture">Scan</button>
+    <!-- Bootstrap JS (optional) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      const video = document.getElementById("video")
+      const captureButton = document.getElementById("capture")
+      alert(`ws://${window.location.host}/ws/1`)
+      const ws = new WebSocket(`ws://${window.location.host}/ws/1`)
+
+      // Connection opened
+      ws.addEventListener("open", (event) => {
+        console.log("<p>WebSocket connection opened</p>")
+        const d = navigator.mediaDevices
+        if (d && d.getUserMedia) {
+          d
+            .getUserMedia({ audio: false, video: true })
+            .then(function (stream) {
+              if ("srcObject" in video) {
+                video.srcObject = stream
+              } else {
+                video.src = window.URL.createObjectURL(stream)
+              }
+              video.onloadedmetadata = function (e) {
+                video.play()
+              }
+            })
+        }
+      })
+
+      // Listen for messages
+      ws.addEventListener("message", (event) => {
+        const message = event.data
+        // console.log(`<p>Received message: ${message}</p>`);
+        console.log(message)
+        let utterance = new SpeechSynthesisUtterance()
+
+        // Set the text and voice of the utterance
+        utterance.text = message
+        utterance.voice = window.speechSynthesis
+          .getVoices()
+          .filter((g) => g.name.includes("Rosa"))[0]
+
+        // Speak the utterance
+        window.speechSynthesis.speak(utterance)
+        alert(message)
+      })
+
+      // Connection closed
+      ws.addEventListener("close", (event) => {
+        console.log("<p>WebSocket connection closed</p>")
+      })
+
+      // Connection error
+      ws.addEventListener("error", (event) => {
+        console.log("<p>Error in WebSocket connection</p>")
+      })
+
+      captureButton.addEventListener("click", () => {
+        const canvas = document.createElement("canvas")
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas
+          .getContext("2d")
+          .drawImage(video, 0, 0, canvas.width, canvas.height)
+        const dataUrl = canvas.toDataURL("image/jpeg")
+        ws.send(dataUrl)
+      })
+    </script>
+  </body>
+</html>
